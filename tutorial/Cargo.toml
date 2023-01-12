@@ -1,0 +1,9 @@
+[package]
+name = "tutorial"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+microdb = { path = "../microdb" }
+microdb_derive = { path = "../microdb/microdb_derive" }
+serde = { version = "1.0.152", features = ["derive"] }

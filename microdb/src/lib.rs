@@ -7,15 +7,15 @@ pub mod transaction_storage;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 use std::thread;
 use tokio::sync::{mpsc, Notify};
-use command::{ CommandBase, CommandDefinitions };
+use command::{ CommandBase, CommandDirectory };
 use transaction::TransactionManager;
 use transaction_storage::TransactionStorage;
 use table::TableBase;
 use futures::executor::block_on;
 
-pub trait DbDefault
+pub trait DatabaseFactory
 {
-    fn default(transaction_manager_ref: Arc<Mutex<TransactionManager>>) -> Self;    
+    fn create_database(transaction_manager_ref: Arc<Mutex<TransactionManager>>) -> Self;    
 }
 
 pub trait Database
@@ -42,7 +42,7 @@ pub enum CommandExecutionType { Synchronous, Asynchronous }
 #[derive(PartialEq)]
 pub enum TransactionStatus { Completed, Failed, NotExecuted }
 
-pub struct CommandEngine<D, C> where D: Database + Sync + Send, C: CommandDefinitions<D>
+pub struct CommandEngine<D, C> where D: Database + Sync + Send, C: CommandDirectory<D>
 {
     db_lock_arc: Arc<RwLock<D>>,
     command_definitions: Arc<C>,
@@ -56,7 +56,7 @@ pub struct CommandEngine<D, C> where D: Database + Sync + Send, C: CommandDefini
     processed_transaction_id_notify: Option<Arc<Notify>>
 }
 
-impl<D, C> CommandEngine<D, C> where D: Database + Sync + Send + 'static, C: CommandDefinitions<D>
+impl<D, C> CommandEngine<D, C> where D: Database + Sync + Send + 'static, C: CommandDirectory<D>
 {
     pub fn new(
         db_lock_arc: Arc<RwLock<D>>,
@@ -230,10 +230,10 @@ pub struct Engine
 
 impl Engine
 {
-    pub fn new<D, C>(command_definitions: C, transaction_storage: Box<dyn TransactionStorage>, command_execution_type: CommandExecutionType, init: &'static dyn Fn(&mut D)) -> (QueryEngine<D>, CommandEngine<D, C>) where D: Database + DbDefault + Send + Sync, C: CommandDefinitions<D>
+    pub fn new<D, C>(command_definitions: C, transaction_storage: Box<dyn TransactionStorage>, command_execution_type: CommandExecutionType, init: &'static dyn Fn(&mut D)) -> (QueryEngine<D>, CommandEngine<D, C>) where D: Database + DatabaseFactory + Send + Sync, C: CommandDirectory<D>
     {
         let transaction_manager_ref = Arc::new(Mutex::new(TransactionManager::new()));
-        let mut db = D::default(transaction_manager_ref.clone());
+        let mut db = D::create_database(transaction_manager_ref.clone());        
         init(&mut db);
         let db_lock_arc = Arc::new(RwLock::new(db));
         let query_engine = QueryEngine { db_lock_arc: db_lock_arc.clone() };
