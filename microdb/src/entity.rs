@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter};
+use log::debug;
 use serde::{Serialize, de::DeserializeOwned};
 use crate::transaction::{TransactionManager, TransactionEntry};
 
@@ -52,19 +53,25 @@ impl<T> DerefMut for Entity<T> where T : Serialize + DeserializeOwned
     {
         let mut locked_transaction_manager = self.transaction_manager.lock().unwrap();
         
-        // If original version of the entity was not stored for this transaction yet
-        if locked_transaction_manager.get_transaction_id() > self.last_modified_transaction_id
+        if locked_transaction_manager.is_transaction_running()
         {
-            // Add an "Existing" transaction entry indicating that the entity existed before the transaction
-            locked_transaction_manager.add_entry(TransactionEntry::Existing(
-                 self.table_id,
-                 self.id,
-                 // Transaction entry contains the whole entity in serialized form
-                 bincode::serialize(&self.val).unwrap()
+            // If original version of the entity was not stored for this transaction yet
+            if locked_transaction_manager.get_transaction_id() > self.last_modified_transaction_id
+            {
+                // Add an entry to the transaction log indicating that entity did not exist before thre transaction
+                debug!("Add transaction entry for an existing entity (Table Id: {}, Entity Id: {})", self.table_id, self.id);
+
+                // Add an "Existing" transaction entry indicating that the entity existed before the transaction
+                locked_transaction_manager.add_entry(TransactionEntry::Existing(
+                    self.table_id,
+                    self.id,
+                    // Transaction entry contains the whole entity in serialized form
+                    bincode::serialize(&self.val).unwrap()
                 ));
 
-            // Transaction id is stored in the entity, because no other transaction entry is needed in the same transaction
-            self.last_modified_transaction_id = locked_transaction_manager.get_transaction_id();
+                // Transaction id is stored in the entity, because no other transaction entry is needed in the same transaction
+                self.last_modified_transaction_id = locked_transaction_manager.get_transaction_id();
+            }
         }
 
         return &mut self.val

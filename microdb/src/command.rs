@@ -89,7 +89,12 @@ impl<D, P> CommandBase<D> for Command<D, P> where D: Database, P: Serialize + De
 
 // ***************************** Command Definitions ***************************** //
 
-pub trait CommandDefinitions<D>
+pub trait CommandDirectory<D>
 {
     fn get(&self, name: &str) -> Box<dyn CommandDefinitionBase<D>>;
+}
+
+pub trait CommandDirectoryFactory
+{
+  fn new() -> Self;  
 }

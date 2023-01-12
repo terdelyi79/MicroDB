@@ -1,3 +1,4 @@
+use log::debug;
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::{HashMap, hash_map::Values, hash_map::ValuesMut};
 use std::hash::{Hash, Hasher};
@@ -19,6 +20,8 @@ pub trait TableBase
 // A table, what can store specific type of entities
 pub struct Table<T> where T : Serialize + DeserializeOwned
 {
+    // Name of the table
+    name: &'static str,
     // Unique identifier of table
     id: u64,
     // Hash map to store all entities by their unique identifiers
@@ -39,7 +42,7 @@ impl<T> Table<T> where T : Serialize + DeserializeOwned
         name.hash(&mut hasher);
         let id = hasher.finish();
 
-        return Self {id, rows: HashMap::new(), first_free_id: 1, transaction_manager };
+        return Self {name, id, rows: HashMap::new(), first_free_id: 1, transaction_manager };
     }
     
     // Returns the unique identifier of table
@@ -75,11 +78,15 @@ impl<T> Table<T> where T : Serialize + DeserializeOwned
         
         let mut locked_transaction_manager = self.transaction_manager.lock().unwrap();
         
-        // Add an entry to the transaction log indicating that entity did not exist before thre transaction
-        locked_transaction_manager.add_entry(TransactionEntry::NotExisting(
-            self.id,
-            id,
-        ));        
+        if locked_transaction_manager.is_transaction_running()
+        {
+            // Add an entry to the transaction log indicating that entity did not exist before thre transaction
+            debug!("Add transaction entry for a new entity (Table: {}, Id: {})", self.name, id);
+            locked_transaction_manager.add_entry(TransactionEntry::NotExisting(
+                self.id,
+                id,
+            ));        
+        }
 
         return id;
     }
@@ -109,8 +116,9 @@ impl<T> TableBase for Table<T> where T: Serialize + DeserializeOwned
     // Revert an entity to its original state, what already existed before the transaction
     fn rollback_to_existing(&mut self, id: usize, state: &Vec<u8>)
     {
+        debug!("rollback_to_existing ({}-{})", self.name, id);
         // Remove the modified version of entity if it is still in the table
-        self.rows.remove(&id);
+        self.rows.remove(&id);        
         // Deserialize the original version of struct stored the entity
         let item = bincode::deserialize::<T>(&state[..]).unwrap();
         // Create a new entity (containing original version of the stored struct)
@@ -122,6 +130,7 @@ impl<T> TableBase for Table<T> where T: Serialize + DeserializeOwned
     // Remove and entity what did not exist before thre transaction
     fn rollback_to_not_existing(&mut self, id: usize)
     {
+        debug!("rollback_to_not_existing ({}-{})", self.name, id);
         // Remove entity from hash map
         self.rows.remove(&id);
     }
