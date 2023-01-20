@@ -5,7 +5,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 pub trait CommandDefinitionBase<D> where D: Database
 {
-  fn create_from_serialized(&self, serialized_parameters: Vec<u8>) -> Box<dyn CommandBase<D> + '_>;  
+  fn create_from_serialized(&self, serialized_parameters: Box<Vec<u8>>) -> Box<dyn CommandBase<D> + '_>;  
 }
 
 #[derive(Clone)]
@@ -45,7 +45,7 @@ impl<D, P> CommandDefinition<D, P> where D: Database, P: Serialize + Deserialize
 
 impl<D, P> CommandDefinitionBase<D> for CommandDefinition<D, P> where D: Database, P: Serialize + DeserializeOwned
 {
-  fn create_from_serialized(&self, serialized_parameters: Vec<u8>) -> Box<dyn CommandBase<D> + '_>
+  fn create_from_serialized(&self, serialized_parameters: Box<Vec<u8>>) -> Box<dyn CommandBase<D> + '_>
   {
     let parameters = bincode::deserialize::<P>(&serialized_parameters[..]).unwrap();
     return Box::new(Command::<D, P> { definition: CommandDefinition { name: self.name, cmd: self.cmd }, parameters });

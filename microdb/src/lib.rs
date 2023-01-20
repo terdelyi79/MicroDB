@@ -4,6 +4,11 @@ pub mod command;
 pub mod transaction;
 pub mod transaction_storage;
 
+pub mod prelude
+{
+    pub use crate::{*, command::*, entity::*, table::*, transaction::*, transaction_storage::*};
+}
+
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 use std::thread;
 use tokio::sync::{mpsc, Notify};
@@ -154,8 +159,9 @@ impl<D, C> CommandEngine<D, C> where D: Database + Sync + Send + 'static, C: Com
     {
         let serialized_parameters = cmd.get_serialized_parameters();
         let name = String::from(cmd.get_name());
-        self.transaction_storage.add(name, serialized_parameters);
-        self.last_pushed_transaction_id +=1;
+        self.transaction_storage.add(name, Box::new(serialized_parameters));
+        self.last_pushed_transaction_id += 1;
+        
 
         if self.command_execution_type == CommandExecutionType::Synchronous
         {

@@ -21,10 +21,10 @@ impl BlogService
         let mut command_engine = self.command_engine_mutex.lock().unwrap();
         let command_definitions = command_engine.get_command_definitions();
         let blogger = Blogger { name, statistics: BloggerStatistics { post_count: 0, like_count: 0 } };
-        return command_engine.push_command(Arc::new(command_definitions.create_blogger.create(blogger)));
+        return command_engine.push_command(Arc::new(command_definitions.create_blogger.create(Box::new(blogger))));
     }
 
-    pub fn get_bloggers(&self) -> Vec<(usize, Blogger)>
+    pub fn get_bloggers(&self) -> Vec<(usize, Box<Blogger>)>
     {
         self.query_engine.get_db().bloggers.iter().map(|blogger| (blogger.get_id(), (*blogger).clone())).collect()
     }
