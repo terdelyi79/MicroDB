@@ -1,18 +1,18 @@
-use microdb::command::{CommandDirectory, CommandDirectoryFactory, CommandDefinition};
-use microdb_derive::{CommandDirectory, CommandDirectoryFactory};
+use microdb::prelude::*;
+use microdb_derive::*;
 use crate::schema::{BlogDatabase, Blogger};
 
 #[derive(CommandDirectory, CommandDirectoryFactory)]
 pub struct BlogCommands
 {    
-  pub create_blogger: CommandDefinition::<BlogDatabase, Blogger> 
+  pub create_blogger: CommandDefinition::<BlogDatabase, Box<Blogger>> 
 }
 
 impl BlogCommands
 {
-  fn create_blogger(db: &mut BlogDatabase, blogger: &Blogger) -> Result<(), String>
+  fn create_blogger(db: &mut BlogDatabase, blogger: &Box<Blogger>) -> Result<(), String>
   {
-    db.bloggers.add(blogger.clone());    
+    db.bloggers.add((*blogger).clone());    
     Ok(())
   }
 }

@@ -25,7 +25,7 @@ pub struct Table<T> where T : Serialize + DeserializeOwned
     // Unique identifier of table
     id: u64,
     // Hash map to store all entities by their unique identifiers
-    rows: HashMap<usize, Entity<T>>,
+    rows: HashMap<usize, Entity<Box<T>>>,
     // First free unique identifier in the table
     first_free_id: usize,
     // Transaction manager
@@ -52,19 +52,19 @@ impl<T> Table<T> where T : Serialize + DeserializeOwned
     }
 
     // Gets an item from the table by identifier
-    pub fn get(&self, id: usize) -> Option<&Entity<T>>
+    pub fn get(&self, id: usize) -> Option<&Entity<Box<T>>>
     {
         self.rows.get(&id)
     }
 
     // Get an item from the table as mutable byidentifirt
-    pub fn get_mut(&mut self, id: usize) -> Option<&mut Entity<T>>
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut Entity<Box<T>>>
     {
         self.rows.get_mut(&id)
     }
 
     // Add a struct to the table as a new entity
-    pub fn add(&mut self, item: T) -> usize
+    pub fn add(&mut self, item: Box<T>) -> usize
     {
         // Use the first free identifier for the new entity
         let id = self.first_free_id;
@@ -98,13 +98,13 @@ impl<T> Table<T> where T : Serialize + DeserializeOwned
     }
 
     // Get an iterator for the entities stored in the table
-    pub fn iter(&self) -> Values<usize, Entity<T>>
+    pub fn iter(&self) -> Values<usize, Entity<Box<T>>>
     {            
         self.rows.values()
     }
     
     // Get a mutable iterator for the entities stored in the table
-    pub fn iter_mut(&mut self) -> ValuesMut<usize, Entity<T>>
+    pub fn iter_mut(&mut self) -> ValuesMut<usize, Entity<Box<T>>>
     {            
         self.rows.values_mut()
     }  
@@ -120,9 +120,9 @@ impl<T> TableBase for Table<T> where T: Serialize + DeserializeOwned
         // Remove the modified version of entity if it is still in the table
         self.rows.remove(&id);        
         // Deserialize the original version of struct stored the entity
-        let item = bincode::deserialize::<T>(&state[..]).unwrap();
+        let item = bincode::deserialize::<Box<T>>(&state[..]).unwrap();
         // Create a new entity (containing original version of the stored struct)
-        let new_entity = Entity::<T>::new(id, self.id, item, self.transaction_manager.clone());
+        let new_entity = Entity::<Box<T>>::new(id, self.id, item, self.transaction_manager.clone());
         // Add the new entity to the hash map
         self.rows.insert(id, new_entity);
     }
